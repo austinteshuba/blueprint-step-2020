@@ -88,7 +88,6 @@ public final class CalendarServletTest extends AuthenticatedServletTestBase {
     servlet = new CalendarServlet(authenticationVerifier, calendarClientFactory);
 
     Mockito.when(calendarClientFactory.getCalendarClient(Mockito.any())).thenReturn(calendarClient);
-
     // Writer used in get/post requests to capture HTTP response values
     stringWriter = new StringWriter();
 

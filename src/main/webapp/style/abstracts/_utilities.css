@@ -129,6 +129,22 @@
 }
 
 /*
+  Adds border to panel in color of Plan logo
+  Overrides other non-important border settings.
+ */
+.u-border-plan {
+  border-color: var(--color-plan) !important;
+}
+
+.u-background-plan {
+  background-color: var(--color-plan) !important;
+}
+
+.plan__button {
+  background-color: var(--color-plan) !important;
+}
+
+/*
   Add bold and underline to text
  */
 .u-bold-underline {

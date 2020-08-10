@@ -124,7 +124,8 @@ function populateCalendar() {
         const panelContent = document.querySelector('#panel-content');
         panelContent.innerHTML = '';
         for (const day in hoursJson.workTimeFree) {
-          if (typeof day == 'string') {
+          if (Object.prototype.hasOwnProperty
+              .call(hoursJson.workTimeFree, day)) {
             const panelContentEntry = document.createElement('div');
             panelContentEntry.className = 'panel__content-entry';
             const dayContainer = document.createElement('p');
@@ -290,6 +291,147 @@ function populateGo() {
         console.log(e);
         if (e instanceof AuthenticationError) {
           signOut();
+        }
+      });
+}
+
+/**
+ * Populate Plan-mail panel with potential times to read the emails
+ */
+function populatePlanMail() {
+  const planContainer = document.querySelector('#plan');
+  fetch('/plan-mail?summary=Read emails')
+      .then((response) => {
+        // If response is a 403, user is not authenticated
+        if (response.status === 403) {
+          throw new AuthenticationError();
+        }
+        return response.json();
+      })
+      .then((planMailResponse) => {
+        // Display the potential times to create events
+        document.querySelector('#word-count').innerText =
+            planMailResponse.wordCount;
+        document.querySelector('#average-reply').innerText =
+            planMailResponse.averageReadingSpeed;
+        document.querySelector('#time-needed').innerText =
+            planMailResponse.minutesToRead;
+        const messageEventContainer = document.querySelector('#message-event');
+        messageEventContainer.innerHTML = '';
+        const intervalContainer = document.querySelector('#free-interval');
+        intervalContainer.innerHTML = '';
+        if (planMailResponse.potentialEventTimes.length === 0) {
+          messageEventContainer.innerText = 'No new events needed';
+        } else {
+          messageEventContainer.innerText = 'Click to schedule';
+          for (const index in planMailResponse.potentialEventTimes) {
+            if (Object.prototype.hasOwnProperty
+                .call(planMailResponse.potentialEventTimes, index)) {
+              const buttonElement = document.createElement('button');
+              buttonElement.className = 'button plan__button';
+              buttonElement.innerText =
+                `${planMailResponse.potentialEventTimes[index].start} to \
+                ${planMailResponse.potentialEventTimes[index].end}`;
+              buttonElement.setAttribute('start',
+                  planMailResponse.potentialEventTimes[index].start);
+              buttonElement.setAttribute('end',
+                  planMailResponse.potentialEventTimes[index].end);
+              buttonElement.addEventListener('click', () => {
+                createEvent(buttonElement.getAttribute('start'),
+                    buttonElement.getAttribute('end'));
+              });
+              intervalContainer.appendChild(buttonElement);
+            }
+          }
+        }
+      })
+      .catch((e) => {
+        console.log(e);
+        if (e instanceof AuthenticationError) {
+          signOut();
+        }
+      });
+}
+
+/**
+ * Call a post request to create a new event in the calendar, then display the
+ * updated information in calendar and plan panels
+ *
+ * @param {string} eventStart the start time of the event to create
+ * @param {string} eventEnd the end time of the event to create
+ */
+function createEvent(eventStart, eventEnd) {
+  const params = new URLSearchParams();
+  params.append('start', eventStart);
+  params.append('end', eventEnd);
+  params.append('summary', 'Read emails');
+  params.append('id', 'primary');
+  fetch('/calendar', {method: 'POST', body: params})
+      .then((response) => {
+        populateCalendar();
+        populatePlanMail();
+      })
+      .catch((e) => {
+        console.log(e);
+      });
+}
+
+/**
+ * Set up the assign panel. For now, this just prints the response
+ * from the server for /gmail-actionable-emails
+ */
+function setUpAssign() {
+  const assignContent = document.querySelector('#assign');
+
+  const subjectLinePhrases = ['Action Required', 'Action Requested'];
+  const unreadOnly = true;
+  const nDays = 7;
+  fetchActionableEmails(subjectLinePhrases, unreadOnly, nDays)
+      .then((response) => {
+        assignContent.innerText = response
+            .map((obj) => obj.subject)
+            .join('\n');
+      })
+      .catch((e) => {
+        console.log(e);
+        if (e instanceof AuthenticationError) {
+          signOut();
+        }
+      });
+}
+
+/**
+ * Get actionable emails from server. Used for assign panel
+ *
+ * @param {string[]} listOfPhrases list of words/phrases that the subject line
+ *     of user's emails should be queried for
+ * @param {boolean} unreadOnly true if only unread emails should be returned,
+ *     false otherwise
+ * @param {number} nDays number of days to check unread emails for.
+ *     Should be an integer > 0
+ * @return {Promise<Object>} returns promise that returns the JSON response
+ *     from client. Should be list of Gmail Message Objects. Will throw
+ *     AuthenticationError in the case of a 403, or generic Error in
+ *     case of other error code
+ */
+function fetchActionableEmails(listOfPhrases, unreadOnly, nDays) {
+  const listOfPhrasesString = encodeListForUrl(listOfPhrases);
+  const unreadOnlyString = unreadOnly.toString();
+  const nDaysString = nDays.toString();
+
+  const queryString =
+      `/gmail-actionable-emails?subjectLinePhrases=${listOfPhrasesString}` +
+      `&unreadOnly=${unreadOnlyString}&nDays=${nDaysString}`;
+
+  return fetch(queryString)
+      .then((response) => {
+        switch (response.status) {
+          case 200:
+            return response.json();
+          case 403:
+            throw new AuthenticationError();
+          default:
+            throw new Error(response.status + ' ' + response.statusText);
         }
       });
 }

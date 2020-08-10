@@ -23,6 +23,7 @@ import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.model.CalendarListEntry;
 import com.google.api.services.calendar.model.Event;
+import com.google.api.services.calendar.model.EventDateTime;
 import com.google.sps.utility.ServletUtility;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -82,6 +83,18 @@ public class CalendarClientImpl implements CalendarClient {
   @Override
   public Date getCurrentTime() throws IOException {
     return new Date();
+  }
+
+  @Override
+  public void createNewEvent(Date start, Date end, String summary, String calendarId)
+      throws IOException {
+    Event event = new Event();
+    EventDateTime startTime = new EventDateTime().setDateTime(new DateTime(start));
+    EventDateTime endTime = new EventDateTime().setDateTime(new DateTime(end));
+    event.setStart(startTime);
+    event.setEnd(endTime);
+    event.setSummary(summary);
+    calendarService.events().insert(calendarId, event).execute();
   }
 
   /** Factory to create a CalendarClientImpl instance with given credential */

@@ -49,6 +49,7 @@
   --color-shadow: rgba(0, 0, 0, .3);
   --color-tasks: #f7c01a;
   --color-white: white;
+  --color-plan: #47c678;
   --font-size-data-point: var(--font-size-subheading);
   --font-size-header-heading: 7rem;
   --font-size-header-subheading: 5rem;

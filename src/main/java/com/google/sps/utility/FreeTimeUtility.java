@@ -191,4 +191,8 @@ public final class FreeTimeUtility {
     List<TimeHourMin> personalTimeFree = convertTime(personalHoursPerDay);
     return new CalendarSummaryResponse(this.startDate.getDay(), workTimeFree, personalTimeFree);
   }
+
+  public List<DateInterval> getWorkFreeInterval() {
+    return this.workFreeInterval;
+  }
 }

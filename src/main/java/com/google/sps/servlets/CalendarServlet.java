@@ -39,6 +39,11 @@ import javax.servlet.http.HttpServletResponse;
 @WebServlet("/calendar")
 public class CalendarServlet extends AuthenticatedHttpServlet {
   private final CalendarClientFactory calendarClientFactory;
+  private static final int PERSONAL_BEGIN_HOUR = 7;
+  private static final int WORK_BEGIN_HOUR = 10;
+  private static final int WORK_END_HOUR = 18;
+  private static final int PERSONAL_END_HOUR = 23;
+  private static final int NUM_DAYS = 5;
 
   /** Create servlet with default CalendarClient and Authentication Verifier implementations */
   public CalendarServlet() {
@@ -72,19 +77,19 @@ public class CalendarServlet extends AuthenticatedHttpServlet {
         : "Null credentials (i.e. unauthenticated requests) should already be handled";
 
     CalendarClient calendarClient = calendarClientFactory.getCalendarClient(googleCredential);
-    long fiveDaysInMillis = TimeUnit.DAYS.toMillis(5);
+    long fiveDaysInMillis = TimeUnit.DAYS.toMillis(NUM_DAYS);
     Date timeMin = calendarClient.getCurrentTime();
-    Date timeMax = Date.from(timeMin.toInstant().plus(Duration.ofDays(5)));
+    Date timeMax = Date.from(timeMin.toInstant().plus(Duration.ofDays(NUM_DAYS)));
     List<Event> calendarEvents = getEvents(calendarClient, timeMin, timeMax);
 
-    int personalBeginHour = 7;
-    int workBeginHour = 10;
-    int workEndHour = 18;
-    int personalEndHour = 23;
-    int numDays = 5;
     FreeTimeUtility freeTimeUtility =
         new FreeTimeUtility(
-            timeMin, personalBeginHour, workBeginHour, workEndHour, personalEndHour, numDays);
+            timeMin,
+            PERSONAL_BEGIN_HOUR,
+            WORK_BEGIN_HOUR,
+            WORK_END_HOUR,
+            PERSONAL_END_HOUR,
+            NUM_DAYS);
     for (Event event : calendarEvents) {
       DateTime start = event.getStart().getDateTime();
       start = start == null ? event.getStart().getDate() : start;
@@ -122,5 +127,30 @@ public class CalendarServlet extends AuthenticatedHttpServlet {
       events.addAll(calendarClient.getUpcomingEvents(calendar, timeMin, timeMax));
     }
     return events;
+  }
+
+  /**
+   * Creates a new event when POST method called. Use the time boundaries given in the request for
+   * creating the event in the primary calendar. The summary for this event is Read emails.
+   *
+   * @param request Http request from the client. Body contains start and end parameters
+   * @param response String saying the event has been created
+   * @throws IOException if an issue arises while processing the request
+   */
+  @Override
+  public void doPost(
+      HttpServletRequest request, HttpServletResponse response, Credential googleCredential)
+      throws IOException {
+    assert googleCredential != null
+        : "Null credentials (i.e. unauthenticated requests) should already be handled";
+
+    CalendarClient calendarClient = calendarClientFactory.getCalendarClient(googleCredential);
+    Date start = new Date(request.getParameter("start"));
+    Date end = new Date(request.getParameter("end"));
+    String summary = request.getParameter("summary");
+    String calendarId = request.getParameter("id");
+    calendarClient.createNewEvent(start, end, summary, calendarId);
+
+    JsonUtility.sendJson(response, "Event created");
   }
 }

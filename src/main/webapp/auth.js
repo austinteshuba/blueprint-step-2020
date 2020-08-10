@@ -38,7 +38,7 @@
 /* eslint-disable no-unused-vars */
 /* global gapi, addCookie, isCookiePresent,
 deleteCookie, populateGmail, populateTasks, populateCalendar,
-postAndGetTaskList, populateGo, setUpAssign */
+postAndGetTaskList, populateGo, populatePlanMail,setUpAssign*/
 // TODO: Handle CommonJS (Issue #31)
 
 /**
@@ -83,6 +83,9 @@ function handleAuthenticationState() {
     // TEMPORARY: Commenting this out since it adds tasks to user's
     // Tasks account on every run.
     // postAndGetTaskList();
+
+    // Populate magic feature panels at the bottom of the dashboard
+    populatePlanMail();
     setUpAssign();
   } else {
     // User is not logged in.
