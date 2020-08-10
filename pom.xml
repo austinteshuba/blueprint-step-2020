@@ -119,6 +119,10 @@
             <plugin>
                 <groupId>com.google.cloud.tools</groupId>
                 <artifactId>appengine-maven-plugin</artifactId>
+                <configuration>
+                    <deploy.version>1</deploy.version>
+                    <deploy.projectId>blueprint-285719</deploy.projectId>
+                </configuration>
                 <version>2.2.0</version>
             </plugin>
             <!-- Provides `mvn spotless:check` and `mvn spotless:apply`. -->
