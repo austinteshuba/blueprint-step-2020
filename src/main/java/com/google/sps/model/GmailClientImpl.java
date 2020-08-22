@@ -31,11 +31,13 @@ import com.google.sps.utility.ServletUtility;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /** Handles GET requests from Gmail API */
 public class GmailClientImpl implements GmailClient {
   private Gmail gmailService;
   private static final int BATCH_REQUEST_CALL_LIMIT = 100;
+  private static final int MAXIMUM_BACKOFF_SECONDS = 32;
 
   private GmailClientImpl(Credential credential) {
     JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
@@ -169,12 +171,15 @@ public class GmailClientImpl implements GmailClient {
       throws IOException {
     List<Message> userMessagesWithoutFormat = listUserMessages(searchQuery);
     List<Message> userMessagesWithFormat = new ArrayList<>();
+    List<Message> batchMessagesWithFormat = new ArrayList<>();
 
-    // When each message is retrieved, add them to the userMessagesWithFormat list
-    JsonBatchCallback<Message> batchCallback = addToListMessageCallback(userMessagesWithFormat);
+    // When each message is retrieved, add them to the batchMessagesWithFormat list
+    // If the entire batch request is successful, the messages will be added to the
+    // userMessagesWithFormat list.
+    // This is to prevent duplicates in the case of a 429 error.
+    JsonBatchCallback<Message> batchCallback = addToListMessageCallback(batchMessagesWithFormat);
 
     // Add messages to a batch request, BATCH_REQUEST_CALL_LIMIT messages at a time
-    // At time of writing, the limit is 100 messages, so it will add 100 messages per request
     int messageIndex = 0;
     while (messageIndex < userMessagesWithoutFormat.size()) {
       BatchRequest batchRequest = gmailService.batch();
@@ -192,10 +197,66 @@ public class GmailClientImpl implements GmailClient {
         messageIndex++;
       }
 
-      batchRequest.execute();
+      executeGmailBatchRequest(batchRequest, batchMessagesWithFormat);
+      userMessagesWithFormat.addAll(batchMessagesWithFormat);
+      batchMessagesWithFormat.clear();
     }
 
     return userMessagesWithFormat;
+  }
+
+  /**
+   * Will execute a gmail batch request. In the case of 429 failure, will retry the request using
+   * standard exponential backoff.
+   *
+   * @param request the request to be executed. Should throw GmailException in the case of failure
+   * @param callbackList the list that contains the objects from successful responses in the batch
+   *     request. Cleared in the case of failure to prevent duplicate entries
+   * @param backoff the current backoff in seconds. Will be increased exponentially until maximum
+   *     backoff is reached
+   * @throws IOException if there is a read/write issue with the request
+   */
+  private void executeGmailBatchRequest(BatchRequest request, List callbackList, int backoff)
+      throws IOException {
+    try {
+      request.execute();
+    } catch (GmailException e) {
+      // Only handle errors with code 403 or 429. Only handle 403 errors if they pertain to
+      // usageLimits (other 403
+      // errors [e.g. authentication errors] should be floated up)
+      GoogleJsonError googleJsonError = e.getGoogleJsonError().orElseThrow(() -> e);
+      if (googleJsonError.getCode() != 429 && googleJsonError.getCode() != 403
+          || backoff * 2 > MAXIMUM_BACKOFF_SECONDS) {
+        throw e;
+      }
+      if (googleJsonError.getCode() == 403
+          && !googleJsonError.getErrors().get(0).getDomain().equals("usageLimits")) {
+        throw e;
+      }
+
+      callbackList.clear();
+      try {
+        TimeUnit.SECONDS.sleep(backoff);
+      } catch (InterruptedException ex) {
+        throw new RuntimeException(ex);
+      }
+      System.out.println(String.format("Backoff: %d", backoff * 2));
+      executeGmailBatchRequest(request, callbackList, backoff * 2);
+    }
+  }
+
+  /**
+   * Will execute a gmail batch request. In the case of 429 failure, will retry the request using
+   * standard exponential backoff. Default initial backoff is 1 second.
+   *
+   * @param request the request to be executed. Should throw GmailException in the case of failure
+   * @param callbackList the list that contains the objects from successful responses in the batch
+   *     request. Cleared in the case of failure to prevent duplicate entries
+   * @throws IOException if there is a read/write issue with the request
+   */
+  private void executeGmailBatchRequest(BatchRequest request, List callbackList)
+      throws IOException {
+    executeGmailBatchRequest(request, callbackList, 1);
   }
 
   /**
@@ -210,7 +271,8 @@ public class GmailClientImpl implements GmailClient {
     return new JsonBatchCallback<Message>() {
       @Override
       public void onFailure(GoogleJsonError googleJsonError, HttpHeaders httpHeaders) {
-        throw new GmailException(googleJsonError.getMessage());
+        System.out.println(googleJsonError.getMessage() + " " + googleJsonError.getCode());
+        throw new GmailException(googleJsonError.getMessage(), googleJsonError);
       }
 
       @Override
