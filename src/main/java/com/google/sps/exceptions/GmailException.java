@@ -14,11 +14,16 @@
 
 package com.google.sps.exceptions;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import java.util.Optional;
+
 /**
  * Used for when the Gmail service returns a GoogleJsonError due to being unable to retrieve an
  * email from the server.
  */
 public class GmailException extends RuntimeException {
+  private Optional<GoogleJsonError> googleJsonError = Optional.empty();
+
   /**
    * Creates GmailException instance
    *
@@ -36,5 +41,14 @@ public class GmailException extends RuntimeException {
    */
   public GmailException(String message, Exception cause) {
     super(message, cause);
+  }
+
+  public GmailException(String message, GoogleJsonError googleJsonError) {
+    super(message);
+    this.googleJsonError = Optional.of(googleJsonError);
+  }
+
+  public Optional<GoogleJsonError> getGoogleJsonError() {
+    return googleJsonError;
   }
 }
