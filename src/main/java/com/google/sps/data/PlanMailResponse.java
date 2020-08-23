@@ -14,12 +14,10 @@
 
 package com.google.sps.data;
 
-import com.google.sps.model.ActionableMessage;
 import com.google.sps.utility.DateInterval;
+import java.util.List;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-
-import java.util.List;
 
 /** Class containing the response to be converted to Json. */
 public final class PlanMailResponse {
@@ -60,11 +58,11 @@ public final class PlanMailResponse {
   @Override
   public int hashCode() {
     return new HashCodeBuilder()
-            .append(wordCount)
-            .append(averageReadingSpeed)
-            .append(minutesToRead)
-            .append(potentialEventTimes)
-            .toHashCode();
+        .append(wordCount)
+        .append(averageReadingSpeed)
+        .append(minutesToRead)
+        .append(potentialEventTimes)
+        .toHashCode();
   }
 
   @Override
@@ -79,10 +77,10 @@ public final class PlanMailResponse {
     PlanMailResponse planMailResponse = (PlanMailResponse) o;
 
     return new EqualsBuilder()
-            .append(wordCount, planMailResponse.getWordCount())
-            .append(averageReadingSpeed, planMailResponse.getAverageReadingSpeed())
-            .append(minutesToRead, planMailResponse.getMinutesToRead())
-            .append(potentialEventTimes, planMailResponse.getPotentialEventTimes())
-            .isEquals();
+        .append(wordCount, planMailResponse.getWordCount())
+        .append(averageReadingSpeed, planMailResponse.getAverageReadingSpeed())
+        .append(minutesToRead, planMailResponse.getMinutesToRead())
+        .append(potentialEventTimes, planMailResponse.getPotentialEventTimes())
+        .isEquals();
   }
 }

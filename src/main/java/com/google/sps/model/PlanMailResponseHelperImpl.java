@@ -18,11 +18,9 @@ import com.google.api.client.util.StringUtils;
 import com.google.api.services.gmail.model.Message;
 import com.google.api.services.gmail.model.MessagePart;
 import com.google.common.io.BaseEncoding;
-import java.io.IOException;
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.stream.Collectors;
-import javax.mail.MessagingException;
 
 /** Contains business logic to compute the word count in unread emails for the PlanMailServlet */
 public final class PlanMailResponseHelperImpl implements PlanMailResponseHelper {

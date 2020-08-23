@@ -363,7 +363,7 @@ function populatePlanMail() {
  */
 function createEvent(eventStart, eventEnd) {
   const params = new URLSearchParams();
-  const EVENT_SUMMARY = "Read emails";
+  const EVENT_SUMMARY = 'Read emails';
   params.append('start', eventStart);
   params.append('end', eventEnd);
   params.append('summary', EVENT_SUMMARY);
