@@ -71,6 +71,7 @@ public class PlanMailServlet extends AuthenticatedHttpServlet {
   private static final int WORK_END_HOUR = 18;
   private static final int PERSONAL_END_HOUR = 23;
   private static final int NUM_DAYS = 5;
+  private static final String EVENT_SUMMARY = "Read emails";
 
   /** Create servlet with default CalendarClient and Authentication Verifier implementations */
   public PlanMailServlet() {
@@ -134,13 +135,12 @@ public class PlanMailServlet extends AuthenticatedHttpServlet {
     // The summary for the events we are creating is the same as the defined eventSummary
     // For now this is the check we are using. We assume that the user will not create
     // events with the same summary if they are not related to reading emails.
-    String eventSummary = request.getParameter("summary");
     for (Event event : calendarEvents) {
       DateTime start = event.getStart().getDateTime();
       start = start == null ? event.getStart().getDate() : start;
       DateTime end = event.getEnd().getDateTime();
       end = end == null ? event.getEnd().getDate() : end;
-      if (event.getSummary().equals(eventSummary)) {
+      if (event.getSummary().equals(EVENT_SUMMARY)) {
         preAssignedTime += end.getValue() - start.getValue();
       }
       Date eventStart = new Date(start.getValue());

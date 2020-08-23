@@ -300,7 +300,7 @@ function populateGo() {
  */
 function populatePlanMail() {
   const planContainer = document.querySelector('#plan');
-  fetch('/plan-mail?summary=Read emails')
+  fetch('/plan-mail')
       .then((response) => {
         // If response is a 403, user is not authenticated
         if (response.status === 403) {
@@ -356,15 +356,17 @@ function populatePlanMail() {
 /**
  * Call a post request to create a new event in the calendar, then display the
  * updated information in calendar and plan panels
+ * TODO: handle event summary better
  *
  * @param {string} eventStart the start time of the event to create
  * @param {string} eventEnd the end time of the event to create
  */
 function createEvent(eventStart, eventEnd) {
   const params = new URLSearchParams();
+  const EVENT_SUMMARY = "Read emails";
   params.append('start', eventStart);
   params.append('end', eventEnd);
-  params.append('summary', 'Read emails');
+  params.append('summary', EVENT_SUMMARY);
   params.append('id', 'primary');
   fetch('/calendar', {method: 'POST', body: params})
       .then((response) => {
