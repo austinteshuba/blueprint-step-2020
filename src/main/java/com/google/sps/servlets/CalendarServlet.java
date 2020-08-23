@@ -77,7 +77,6 @@ public class CalendarServlet extends AuthenticatedHttpServlet {
         : "Null credentials (i.e. unauthenticated requests) should already be handled";
 
     CalendarClient calendarClient = calendarClientFactory.getCalendarClient(googleCredential);
-    long fiveDaysInMillis = TimeUnit.DAYS.toMillis(NUM_DAYS);
     Date timeMin = calendarClient.getCurrentTime();
     Date timeMax = Date.from(timeMin.toInstant().plus(Duration.ofDays(NUM_DAYS)));
     List<Event> calendarEvents = getEvents(calendarClient, timeMin, timeMax);

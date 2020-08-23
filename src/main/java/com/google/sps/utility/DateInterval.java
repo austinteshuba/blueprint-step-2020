@@ -14,6 +14,10 @@
 
 package com.google.sps.utility;
 
+import com.google.sps.data.PlanMailResponse;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 import java.util.*;
 
 /** Class implementing an Interval Data Structure. */
@@ -39,5 +43,30 @@ public final class DateInterval {
 
   public Date getEnd() {
     return this.end;
+  }
+
+  @Override
+  public int hashCode() {
+    return new HashCodeBuilder()
+            .append(start)
+            .append(end)
+            .toHashCode();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof DateInterval)) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+
+    DateInterval dateInterval = (DateInterval) o;
+
+    return new EqualsBuilder()
+            .append(start, dateInterval.getStart())
+            .append(end, dateInterval.getEnd())
+            .isEquals();
   }
 }

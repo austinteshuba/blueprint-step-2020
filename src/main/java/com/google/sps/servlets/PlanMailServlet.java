@@ -23,6 +23,10 @@ import com.google.api.services.gmail.model.Message;
 import com.google.api.services.gmail.model.MessagePart;
 import com.google.common.base.Throwables;
 import com.google.common.io.BaseEncoding;
+import com.google.api.services.calendar.model.CalendarListEntry;
+import com.google.api.services.calendar.model.Event;
+import com.google.api.services.gmail.model.Message;
+import com.google.common.base.Throwables;
 import com.google.sps.data.PlanMailResponse;
 import com.google.sps.model.AuthenticatedHttpServlet;
 import com.google.sps.model.AuthenticationVerifier;
@@ -32,6 +36,8 @@ import com.google.sps.model.CalendarClientImpl;
 import com.google.sps.model.GmailClient;
 import com.google.sps.model.GmailClientFactory;
 import com.google.sps.model.GmailClientImpl;
+import com.google.sps.model.PlanMailResponseHelper;
+import com.google.sps.model.PlanMailResponseHelperImpl;
 import com.google.sps.utility.DateInterval;
 import com.google.sps.utility.FreeTimeUtility;
 import com.google.sps.utility.JsonUtility;
@@ -44,6 +50,7 @@ import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.mail.MessagingException;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -57,6 +64,7 @@ import javax.servlet.http.HttpServletResponse;
 public class PlanMailServlet extends AuthenticatedHttpServlet {
   private final CalendarClientFactory calendarClientFactory;
   private final GmailClientFactory gmailClientFactory;
+  private final PlanMailResponseHelper planMailResponseHelper;
   private static final int AVERAGE_READING_SPEED = 50;
   private static final int PERSONAL_BEGIN_HOUR = 7;
   private static final int WORK_BEGIN_HOUR = 10;
@@ -68,21 +76,27 @@ public class PlanMailServlet extends AuthenticatedHttpServlet {
   public PlanMailServlet() {
     calendarClientFactory = new CalendarClientImpl.Factory();
     gmailClientFactory = new GmailClientImpl.Factory();
+    planMailResponseHelper = new PlanMailResponseHelperImpl();
   }
 
   /**
-   * Create servlet with explicit implementations of CalendarClient and AuthenticationVerifier
+   * Create servlet with explicit implementations of CalendarClient, AuthenticationVerifier
+   * GmailClient, and PlanMailResponseHelper
    *
    * @param authenticationVerifier implementation of AuthenticationVerifier
    * @param calendarClientFactory implementation of CalendarClientFactory
+   * @param gmailClientFactory implementation of GmailClientFactory
+   * @param planMailResponseHelper implementation of PlanMailResponseHelper
    */
   public PlanMailServlet(
       AuthenticationVerifier authenticationVerifier,
       CalendarClientFactory calendarClientFactory,
-      GmailClientFactory gmailClientFactory) {
+      GmailClientFactory gmailClientFactory,
+      PlanMailResponseHelper planMailResponseHelper) {
     super(authenticationVerifier);
     this.calendarClientFactory = calendarClientFactory;
     this.gmailClientFactory = gmailClientFactory;
+    this.planMailResponseHelper = planMailResponseHelper;
   }
 
   /**
@@ -101,7 +115,6 @@ public class PlanMailServlet extends AuthenticatedHttpServlet {
         : "Null credentials (i.e. unauthenticated requests) should already be handled";
 
     CalendarClient calendarClient = calendarClientFactory.getCalendarClient(googleCredential);
-    long fiveDaysInMillis = TimeUnit.DAYS.toMillis(5);
     Date timeMin = calendarClient.getCurrentTime();
     Date timeMax = Date.from(timeMin.toInstant().plus(Duration.ofDays(NUM_DAYS)));
     List<Event> calendarEvents = getEvents(calendarClient, timeMin, timeMax);
@@ -185,35 +198,6 @@ public class PlanMailServlet extends AuthenticatedHttpServlet {
   }
 
   /**
-   * Get the unread emails from the last week, and perform a word count for the body of each message
-   *
-   * @param googleCredential the credential to creare a gmailClient with
-   * @return The final word count
-   * @throws IOException if an issue occurs in the method
-   * @throws MessagingException if an issue occurs in the method
-   */
-  private int getWordCount(Credential googleCredential) {
-    GmailClient gmailClient = gmailClientFactory.getGmailClient(googleCredential);
-    GmailClient.MessageFormat messageFormat = GmailClient.MessageFormat.FULL;
-    int numberDays = 7;
-    int wordCount = 0;
-    List<Message> unreadMessages = new ArrayList<>();
-    try {
-      unreadMessages = gmailClient.getUnreadEmailsFromNDays(messageFormat, numberDays);
-    } catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
-    for (Message message : unreadMessages) {
-      try {
-        wordCount += getMessageSize(message);
-      } catch (MessagingException | IOException e) {
-        throw Throwables.propagate(e);
-      }
-    }
-    return wordCount;
-  }
-
-  /**
    * Get the events in the user's calendars
    *
    * @param calendarClient either a mock CalendarClient or a calendarClient with a valid credential
@@ -232,29 +216,16 @@ public class PlanMailServlet extends AuthenticatedHttpServlet {
     return events;
   }
 
-  /**
-   * Get the word-count in an individual message.
-   *
-   * @param message the message given for which to find a word count
-   * @throws IOException if an issue occurs in the method
-   * @throws MessagingException if an issue occurs in the method
-   */
-  private int getMessageSize(Message message) throws MessagingException, IOException {
-    List<MessagePart> messageParts = message.getPayload().getParts();
-    List<MessagePart> messageBody =
-        messageParts.stream()
-            .filter((messagePart) -> messagePart.getMimeType().equals("text/plain"))
-            .collect(Collectors.toList());
-    int size = 0;
-    if (messageBody.isEmpty()) {
-      return size;
+  private int getWordCount(Credential googleCredential) {
+    GmailClient gmailClient = gmailClientFactory.getGmailClient(googleCredential);
+    GmailClient.MessageFormat messageFormat = GmailClient.MessageFormat.FULL;
+    int numberDaysUnread = 7;
+    List<Message> unreadMessages = new ArrayList<>();
+    try {
+      unreadMessages = gmailClient.getUnreadEmailsFromNDays(messageFormat, numberDaysUnread);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
     }
-    for (MessagePart part : messageBody) {
-      byte[] messageBytes = BaseEncoding.base64Url().decode(part.getBody().getData());
-      String messageString = StringUtils.newStringUtf8(messageBytes);
-      StringTokenizer tokens = new StringTokenizer(messageString);
-      size += tokens.countTokens();
-    }
-    return size;
+    return planMailResponseHelper.getWordCount(unreadMessages);
   }
 }
